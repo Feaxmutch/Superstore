@@ -1,0 +1,14 @@
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\bin\Debug\net8.0\Superstore.exe
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\bin\Debug\net8.0\Superstore.deps.json
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\bin\Debug\net8.0\Superstore.runtimeconfig.json
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\bin\Debug\net8.0\Superstore.dll
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\bin\Debug\net8.0\Superstore.pdb
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.GeneratedMSBuildEditorConfig.editorconfig
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.AssemblyInfoInputs.cache
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.AssemblyInfo.cs
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.csproj.CoreCompileInputs.cache
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.dll
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\refint\Superstore.dll
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.pdb
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\Superstore.genruntimeconfig.cache
+F:\данил\Projects\visual_studio_projects\IJ_projects\OOP\Superstore\Superstore\obj\Debug\net8.0\ref\Superstore.dll
