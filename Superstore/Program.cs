@@ -4,10 +4,10 @@
     {
         static void Main(string[] args)
         {
-            NumberRange itemsCount = new(1, 15);
+            NumberRange goodsCount = new(1, 15);
             NumberRange moneysCount = new(50, 2000);
             int customersCount = 5;
-            List<Item> items = new()
+            List<Good> goods = new()
             {
                 new("Яблоки", 150),
                 new("Йогурт", 40),
@@ -26,17 +26,32 @@
                 new("Колбаса", 170),
             };
 
-            SuperstoreMenu menu = Initialize(itemsCount, moneysCount, customersCount, items);
+            SuperstoreMenu menu = Initialize(goodsCount, moneysCount, customersCount, goods);
             menu.ServeCustomers();
         }
 
-        static SuperstoreMenu Initialize(NumberRange itemsCount, NumberRange moneysCount, int customersCount, List<Item> items)
+        static SuperstoreMenu Initialize(NumberRange goodsCount, NumberRange moneysCount, int customersCount, List<Good> Goods)
         {
-            Superstore superstore = new(items);
-            CustomerRandomizer customerRandomizer = new(superstore, itemsCount, moneysCount);
-            List<Customer> customers = customerRandomizer.Create(customersCount);
+            Superstore superstore = new(Goods);
+            CustomerFactory customerRandomizer = new(superstore, goodsCount, moneysCount);
+            List<Customer> customers = customerRandomizer.CreateRandomCustomers(customersCount);
             superstore.TakeCustomers(customers);
             return new(superstore);
+        }
+    }
+
+    public static class UserUtilits
+    {
+        private static Random _random = new();
+
+        public static int GenerateRandomNumber(NumberRange range)
+        {
+            return _random.Next(range.Minimum, range.Maximum);
+        }
+
+        public static int GenerateRandomNumber(int maximum)
+        {
+            return _random.Next(maximum);
         }
     }
 
@@ -59,7 +74,7 @@
                 Console.Clear();
                 Console.WriteLine($"Заработанные супермаркетом деньги: {_superstore.Money}");
                 Console.WriteLine($"список товаров:");
-                ShowGoods();
+                ShowSuperstoreGoods();
                 Console.WriteLine($"\nКоличество клиентов: {_superstore.CustomersCount}");
                 Console.Write("\nДеньги клиента: ");
                 ShowMoney(customer);
@@ -88,7 +103,7 @@
             }
         }
 
-        public void ShowGoods()
+        public void ShowSuperstoreGoods()
         {
             foreach (var good in _superstore.Goods)
             {
@@ -100,12 +115,12 @@
         {
             ArgumentNullException.ThrowIfNull(customer);
 
-            List<string> itemNames = customer.Cart.GetAllNames();
+            List<string> goodNames = customer.Cart.GetAllNames();
             Console.WriteLine($"Цена всех товаров в корзине: {customer.GetFullPrice()}");
 
-            foreach (var name in itemNames)
+            foreach (var name in goodNames)
             {
-                if (customer.Cart.Contains(name, out int count))
+                if (customer.Cart.IsContains(name, out int count))
                 {
                     int price = customer.Cart.GetPrice(name);
 
@@ -124,34 +139,32 @@
 
     public class Superstore : ISupestore
     {
-        private readonly ItemFactory _factory;
         private readonly Queue<Customer> _customers;
 
-        public Superstore(List<Item> goods)
+        public Superstore(List<Good> goods)
         {
             ArgumentNullException.ThrowIfNull(goods);
 
             Goods = goods;
             Money = default;
             _customers = new();
-            _factory = new();
         }
 
         public int CustomersCount => _customers.Count;
 
-        public IReadOnlyList<Item> Goods { get; }
+        public IReadOnlyList<Good> Goods { get; }
 
         public ICustomer CurrentCustomer => _customers.Peek();
 
         public int Money { get; private set; }
 
-        public Item GiveGood(int index)
+        public Good GiveGood(int index)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Goods.Count);
 
-            Item good = Goods[index];
-            return _factory.Create(good.Name, good.Price);
+            Good good = Goods[index];
+            return good.Clone();
         }
 
         public void TakeCustomers(List<Customer> customers)
@@ -165,7 +178,7 @@
         {
             if (CurrentCustomer.CanPay() == false)
             {
-                throw new InvalidOperationException("Customer cant Pay");
+                throw new InvalidOperationException("Customer can't Pay");
             }
 
             Customer customer = _customers.Dequeue();
@@ -180,40 +193,44 @@
 
     public interface ISupestore
     {
-        IReadOnlyList<Item> Goods { get; }
+        IReadOnlyList<Good> Goods { get; }
 
-        Item GiveGood(int index);
+        Good GiveGood(int index);
     }
 
-    public class Customer : People, ICustomer
+    public class Customer : ICustomer
     {
         private readonly Inventory _cart;
-        private readonly Random _random;
+        private readonly Inventory _backpack;
 
-        public Customer(int money) : base(money)
+        public Customer(List<Good> goods, int money)
         {
+            ArgumentNullException.ThrowIfNull(goods);
+            ArgumentOutOfRangeException.ThrowIfNegative(money);
+
             _cart = new();
-            _random = new();
+            _backpack = new();
+            Money = money;
+
+            foreach (var good in goods)
+            {
+                _cart.Take(good);
+            }
         }
 
         public IInventory Cart => _cart;
 
-        public void TakeToCart(Item item)
-        {
-            ArgumentNullException.ThrowIfNull(item);
-
-            _cart.Take(item);
-        }
+        public int Money { get; private set; }
 
         public void DropRandom()
         {
             List<string> allItemNames = _cart.GetAllNames();
-            int index = _random.Next(allItemNames.Count);
+            int index = UserUtilits.GenerateRandomNumber(allItemNames.Count);
 
-            while (_cart.Contains(allItemNames[index]) == false)
+            while (_cart.IsContains(allItemNames[index]) == false)
             {
                 allItemNames.RemoveAt(index);
-                index = _random.Next(allItemNames.Count);
+                index = UserUtilits.GenerateRandomNumber(allItemNames.Count);
             }
 
             _cart.Give(allItemNames[index]);
@@ -230,11 +247,11 @@
 
             if (CanPay())
             {
-                List<string> itemNames = _cart.GetAllNames();
+                List<string> goodNames = _cart.GetAllNames();
 
-                foreach (var name in itemNames)
+                foreach (var name in goodNames)
                 {
-                    while (_cart.Contains(name))
+                    while (_cart.IsContains(name))
                     {
                         payedMoney += BuyItem(_cart.Give(name));
                     }
@@ -250,18 +267,41 @@
 
         public int GetFullPrice()
         {
-            List<string> allItemNames = _cart.GetAllNames();
+            List<string> allGoodNames = _cart.GetAllNames();
             int fullPrice = default;
 
-            foreach (var itemName in allItemNames)
+            foreach (var goodName in allGoodNames)
             {
-                if (_cart.Contains(itemName, out int count))
+                if (_cart.IsContains(goodName, out int count))
                 {
-                    fullPrice += _cart.GetPrice(itemName) * count;
+                    fullPrice += _cart.GetPrice(goodName) * count;
                 }
             }
 
             return fullPrice;
+        }
+
+        private int BuyItem(Good good)
+        {
+            ArgumentNullException.ThrowIfNull(good);
+
+            if (Money >= good.Price)
+            {
+                Money -= good.Price;
+                Take(good);
+                return good.Price;
+            }
+            else
+            {
+                throw new ArgumentException("People can't buy");
+            }
+        }
+
+        private void Take(Good good)
+        {
+            ArgumentNullException.ThrowIfNull(good);
+
+            _backpack.Take(good);
         }
     }
 
@@ -276,44 +316,6 @@
         int GetFullPrice();
     }
 
-    public class People
-    {
-        private readonly Inventory _backpack;
-
-        public People(int money)
-        {
-            ArgumentOutOfRangeException.ThrowIfNegative(money);
-
-            Money = money;
-            _backpack = new();
-        }
-
-        public int Money { get; private set; }
-
-        protected int BuyItem(Item item)
-        {
-            ArgumentNullException.ThrowIfNull(item);
-
-            if (Money >= item.Price)
-            {
-                Money -= item.Price;
-                Take(item);
-                return item.Price;
-            }
-            else
-            {
-                throw new ArgumentException("People can't buy");
-            }
-        }
-
-        protected void Take(Item item)
-        {
-            ArgumentNullException.ThrowIfNull(item);
-
-            _backpack.Take(item);
-        }
-    }
-
     public class Inventory : IInventory
     {
         private readonly List<Cell> _cells;
@@ -323,17 +325,17 @@
             _cells = new();
         }
 
-        public bool Contains(string itemName)
+        public bool IsContains(string goodName)
         {
-            return Contains(itemName, out int _);
+            return IsContains(goodName, out int _);
         }
 
-        public bool Contains(string itemName, out int count)
+        public bool IsContains(string goodName, out int count)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            ArgumentException.ThrowIfNullOrWhiteSpace(goodName);
 
             count = default;
-            bool isContains = TryGetCell(itemName, out Cell cell) && cell.Count > 0;
+            bool isContains = TryGetCell(goodName, out Cell cell) && cell.Count > 0;
 
             if (isContains)
             {
@@ -343,9 +345,9 @@
             return isContains;
         }
 
-        public int GetPrice(string itemName)
+        public int GetPrice(string goodName)
         {
-            return GetCell(itemName).ItemPrice;
+            return GetCell(goodName).GoodPrice;
         }
 
         public List<string> GetAllNames()
@@ -354,47 +356,47 @@
 
             foreach (var cell in _cells)
             {
-                names.Add(cell.ItemName);
+                names.Add(cell.GoodName);
             }
 
             return names;
         }
 
-        public void Take(Item item)
+        public void Take(Good good)
         {
-            ArgumentNullException.ThrowIfNull(item);
+            ArgumentNullException.ThrowIfNull(good);
 
-            if (TryGetCell(item.Name, out Cell cell) == false)
+            if (TryGetCell(good.Name, out Cell cell) == false)
             {
-                cell = new Cell(item);
+                cell = new Cell(good);
                 _cells.Add(cell);
             }
             
             cell.Add();
         }
 
-        public Item Give(string itemName)
+        public Good Give(string goodName)
         {
-            return GetCell(itemName).Give();
+            return GetCell(goodName).Give();
         }
 
-        private Cell GetCell(string itemName)
+        private Cell GetCell(string goodName)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(itemName);
+            ArgumentException.ThrowIfNullOrWhiteSpace(goodName);
 
-            if (TryGetCell(itemName, out Cell cell) && cell.Count > 0)
+            if (TryGetCell(goodName, out Cell cell) && cell.Count > 0)
             {
                 return cell;
             }
             else
             {
-                throw new ArgumentException($"Inventory is not contains a {itemName}");
+                throw new ArgumentException($"Inventory is not contains a {goodName}");
             }
         }
 
-        private bool TryGetCell(string itemName, out Cell cell)
+        private bool TryGetCell(string goodName, out Cell cell)
         {
-            Cell[] correctCells = _cells.Where(cell => cell.ItemName == itemName).ToArray();
+            Cell[] correctCells = _cells.Where(cell => cell.GoodName == goodName).ToArray();
 
             if (correctCells.Length > 0)
             {
@@ -411,29 +413,27 @@
 
     public interface IInventory
     {
-        bool Contains(string itemName, out int count);
+        bool IsContains(string goodName, out int count);
 
         List<string> GetAllNames();
 
-        int GetPrice(string itemName);
+        int GetPrice(string goodName);
     }
 
     public class Cell
     {
-        private readonly Item _item;
-        private readonly ItemFactory _factory;
+        private readonly Good _good;
 
-        public Cell(Item item)
+        public Cell(Good good)
         {
-            ArgumentNullException.ThrowIfNull(item);
+            ArgumentNullException.ThrowIfNull(good);
 
-            _item = item;
-            _factory = new();
+            _good = good;
         }
 
-        public string ItemName => _item.Name;
+        public string GoodName => _good.Name;
 
-        public int ItemPrice => _item.Price;
+        public int GoodPrice => _good.Price;
 
         public int Count { get; private set; }
 
@@ -442,18 +442,18 @@
             Count++;
         }
 
-        public Item Give()
+        public Good Give()
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(Count);
 
             Count--;
-            return _factory.Create(ItemName, ItemPrice);
+            return _good.Clone();
         }
     }
 
-    public class Item
+    public class Good
     {
-        public Item(string name, int price)
+        public Good(string name, int price)
         {
             ArgumentException.ThrowIfNullOrEmpty(name);
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(price);
@@ -465,58 +465,30 @@
         public string Name { get; }
 
         public int Price { get; }
-    }
 
-    public class ItemFactory
-    {
-        public Item Create(string name, int price)
-        {
-            return new Item(name, price);
-        }
+        public Good Clone() => new Good(Name, Price);
     }
 
     public class CustomerFactory
     {
-        public Customer Create(List<Item> items, int money)
-        {
-            ArgumentNullException.ThrowIfNull(items);
-            ArgumentOutOfRangeException.ThrowIfNegative(money);
-
-            Customer customer = new(money);
-
-            foreach (var item in items)
-            {
-                customer.TakeToCart(item);
-            }
-
-            return customer;
-        }
-    }
-
-    public class CustomerRandomizer
-    {
-        private readonly CustomerFactory _customerFactory;
         private readonly ISupestore _superstore;
-        private readonly Random _random;
-        private readonly NumberRange _itemsCount;
+        private readonly NumberRange _goodCount;
         private readonly NumberRange _moneysCount;
 
-        public CustomerRandomizer(ISupestore superstore, NumberRange itemsCount, NumberRange moneysCount)
+        public CustomerFactory(ISupestore superstore, NumberRange goodsCount, NumberRange moneysCount)
         {
-            ArgumentNullException.ThrowIfNull(itemsCount);
+            ArgumentNullException.ThrowIfNull(goodsCount);
             ArgumentNullException.ThrowIfNull(moneysCount);
             ArgumentNullException.ThrowIfNull(superstore);
-            ArgumentOutOfRangeException.ThrowIfNegative(itemsCount.Minimum);
+            ArgumentOutOfRangeException.ThrowIfNegative(goodsCount.Minimum);
             ArgumentOutOfRangeException.ThrowIfNegative(moneysCount.Minimum);
 
-            _itemsCount = itemsCount;
+            _goodCount = goodsCount;
             _moneysCount = moneysCount;
-            _customerFactory = new();
             _superstore = superstore;
-            _random = new();
         }
 
-        public List<Customer> Create(int count)
+        public List<Customer> CreateRandomCustomers(int count)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(count);
 
@@ -524,31 +496,31 @@
 
             for (int i = 0; i < count; i++)
             {
-                int money = _random.Next(_moneysCount.Minimum, _moneysCount.Maximum);
-                int itemsCount = _random.Next(_itemsCount.Minimum, _itemsCount.Maximum);
-                List<Item> items = CreateRandomItems(itemsCount);
-                Customer customer = _customerFactory.Create(items, money);
+                int money = UserUtilits.GenerateRandomNumber(_moneysCount);
+                int goodsCount = UserUtilits.GenerateRandomNumber(_goodCount);
+                List<Good> goods = GiveRandomGoods(goodsCount);
+                Customer customer = new(goods, money);
                 customers.Add(customer);
             }
 
             return customers;
         }
 
-        private List<Item> CreateRandomItems(int count)
+        private List<Good> GiveRandomGoods(int count)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(count);
 
-            List<Item> items = new();
-            int itemIndex = default;
+            List<Good> goods = new();
+            int goodIndex = default;
 
             for (int i = 0; i < count; i++)
             {
-                itemIndex = _random.Next(0, _superstore.Goods.Count);
-                Item item = _superstore.GiveGood(itemIndex);
-                items.Add(item);
+                goodIndex = UserUtilits.GenerateRandomNumber(_superstore.Goods.Count);
+                Good good = _superstore.GiveGood(goodIndex);
+                goods.Add(good);
             }
 
-            return items;
+            return goods;
         }
     }
 
